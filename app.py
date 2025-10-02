@@ -6,7 +6,7 @@ import base64
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "llava"
 
-# --- Prompt ---
+# --- Prompt (hidden, nicht im UI) ---
 hidden_prompt = """Objective:
 Generate a concise, strictly objective description of the technical museum object 
 shown in the uploaded images. The description must be based **only on visible evidence** 
@@ -50,7 +50,7 @@ def analyze_with_ollama(images, progress=gr.Progress()):
             "images": img_b64_list
         }
 
-        progress(0.5, desc="Sende Bilder an Ollama …")
+        progress(0.5, desc="Put the image(s) here")
         response = requests.post(OLLAMA_API_URL, json=payload, stream=True)
 
         if response.status_code != 200:
@@ -75,24 +75,38 @@ def analyze_with_ollama(images, progress=gr.Progress()):
 
 
 # --- Gradio UI ---
-with gr.Blocks() as demo:
-    gr.Markdown("# 🖼️ Technical Museum Object Analyzer (Ollama)")
+with gr.Blocks(css="body {max-width: 100%;}") as demo:
+    gr.Markdown("# Technical Museum Object Analyzer ")
 
+    # --- Bilder Upload + Galerie nebeneinander ---
     with gr.Row():
-        image_input = gr.File(
-            file_types=[".jpg", ".jpeg", ".png"],
-            label="Bilder hochladen (mehrere möglich)",
-            file_count="multiple"
-        )
+        with gr.Column(scale=1):
+            image_input = gr.File(
+                file_types=[".jpg", ".jpeg", ".png"],
+                label="📂 Bilder hochladen oder ablegen",
+                file_count="multiple"
+            )
+        with gr.Column(scale=2):
+            gallery = gr.Gallery(
+                label="Uploaded images",
+                show_label=False,
+                columns=[2],
+                height="auto"
+            )
 
+    # --- Ergebnis darunter ---
     with gr.Row():
         output_text = gr.Textbox(
             lines=25,
-            label="Beschreibung (EN, PL, DE, FR)",
+            label="Description",
             show_copy_button=True
         )
 
-    # 👉 Direkt starten, wenn Bilder hochgeladen werden
+    # --- Events ---
+    def preview_images(images):
+        return images if images else []
+
+    image_input.change(fn=preview_images, inputs=image_input, outputs=gallery)
     image_input.change(fn=analyze_with_ollama, inputs=image_input, outputs=output_text)
 
 if __name__ == "__main__":
